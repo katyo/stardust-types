@@ -157,6 +157,8 @@ export function Some<Item>(item: Item): Option<Item> {
     return new OptionSome(item);
 }
 
+const none = new OptionNone();
+
 export function None<Item>(): Option<Item> {
-    return new OptionNone();
+    return none as any as Option<Item>;
 }
