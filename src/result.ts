@@ -11,6 +11,8 @@ export interface Result<Item, Error> {
     map_or<Type>(err: Type, fn: (item: Item) => Type): Type;
     map_or_else<Type>(err_fn: (err: Error) => Type, fn: (item: Item) => Type): Type;
     map_err<NewError>(fn: (error: Error) => NewError): Result<Item, NewError>;
+    map_err_or<Type>(err: Type, fn: (error: Error) => Type): Type;
+    map_err_or_else<Type>(err_fn: (item: Item) => Type, fn: (error: Error) => Type): Type;
 
     and<OtherItem>(other: Result<OtherItem, Error>): Result<OtherItem, Error>;
     and_then<OtherItem>(other_fn: (item: Item) => Result<OtherItem, Error>): Result<OtherItem, Error>;
@@ -58,6 +60,14 @@ class ResultOk<Item, Error> implements Result<Item, Error> {
 
     map_err<NewError>(fn: (error: Error) => NewError): Result<Item, NewError> {
         return this as any as Result<Item, NewError>;
+    }
+
+    map_err_or<Type>(err: Type, _fn: (error: Error) => Type): Type {
+        return err;
+    }
+
+    map_err_or_else<Type>(err_fn: (item: Item) => Type, _fn: (error: Error) => Type): Type {
+        return err_fn(this._);
     }
 
     and<OtherItem>(other: Result<OtherItem, Error>): Result<OtherItem, Error> {
@@ -129,6 +139,14 @@ class ResultErr<Item, Error> implements Result<Item, Error> {
 
     map_err<NewError>(fn: (error: Error) => NewError): Result<Item, NewError> {
         return Err(fn(this._));
+    }
+
+    map_err_or<Type>(_err: Type, fn: (error: Error) => Type): Type {
+        return fn(this._);
+    }
+
+    map_err_or_else<Type>(_err_fn: (item: Item) => Type, fn: (error: Error) => Type): Type {
+        return fn(this._);
     }
 
     and<OtherItem>(_other: Result<OtherItem, Error>): Result<OtherItem, Error> {
