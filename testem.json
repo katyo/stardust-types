@@ -1,0 +1,18 @@
+{
+  "framework": "mocha",
+  "src_files": [
+    "test/*.ts"
+  ],
+  "serve_files": [
+    "test-out.js"
+  ],
+  "before_tests": "browserify -d test/index.ts -p [ tsify --noImplicitAny ] -o test-out.js",
+  "on_exit": "rm test-out.js",
+  "launchers": {
+    "nodejs": {
+      "command": "mocha test-out.js -R tap",
+      "protocol": "tap"
+    }
+  },
+  "launch_in_dev": [ "firefox", "chromium", "nodejs" ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "stardust-types",
+  "version": "0.1.0",
+  "description": "The useful wrapping types for typescript",
+  "main": "types.js",
+  "scripts": {
+    "pretest": "npm run compile",
+    "test": "testem",
+    "compile": "npm run compile-es && npm run compile-js",
+    "compile-es": "tsc --outDir es --module es6 --moduleResolution node",
+    "compile-js": "tsc --outDir ./",
+    "prepublish": "npm run compile"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github:com/katyo/stardust-types"
+  },
+  "keywords": [
+    "rust",
+    "typescript",
+    "option",
+    "result",
+    "either",
+    "future",
+    "stream",
+    "sink"
+  ],
+  "author": "K. <kayo@illumium.org>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/mocha": "^2.2.44",
+    "@types/node": "^8.0.53",
+    "browserify": "^14.5.0",
+    "mocha": "^4.0.1",
+    "testem": "^1.18.4",
+    "tsify": "^3.0.3",
+    "typescript": "^2.6.2"
+  }
+}
