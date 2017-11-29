@@ -15,6 +15,7 @@
     },
     "files": [
         "src/option.ts",
-        "src/result.ts"
+        "src/result.ts",
+        "src/either.ts"
     ]
 }
