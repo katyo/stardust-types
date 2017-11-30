@@ -17,6 +17,7 @@
         "src/option.ts",
         "src/result.ts",
         "src/either.ts",
-        "src/future.ts"
+        "src/future.ts",
+        "src/timer.ts"
     ]
 }
