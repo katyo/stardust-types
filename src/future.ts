@@ -24,12 +24,19 @@ export interface Future<Item, Error> {
     unend(fn: (res: Result<Item, Error>) => void): Future<Item, Error>;
     unok(fn: (item: Item) => void): Future<Item, Error>;
     unerr(fn: (error: Error) => void): Future<Item, Error>;
+
+    start(): void;
+    abort(): void;
 }
 
 export interface FutureEnd<Item, Error> {
     end(res: Result<Item, Error>): void;
     ok(item: Item): void;
     err(error: Error): void;
+
+    /* feedback */
+    start(fn: () => void): FutureEnd<Item, Error>;
+    abort(fn: () => void): FutureEnd<Item, Error>;
 }
 
 class FutureAsync<Item, Error> implements Future<Item, Error> {
@@ -41,75 +48,152 @@ class FutureAsync<Item, Error> implements Future<Item, Error> {
 
     map<NewItem>(fn: (item: Item) => NewItem): Future<NewItem, Error> {
         const [future_end, future] = Async<NewItem, Error>();
-        this.end(res => future_end.end(res.map(fn)));
+        const on = (res: Result<Item, Error>) => { future_end.end(res.map(fn)); };
+        this.end(on);
+        future_end
+            .start(() => { this.start(); })
+            .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     map_err<NewError>(fn: (error: Error) => NewError): Future<Item, NewError> {
         const [future_end, future] = Async<Item, NewError>();
-        this.end(res => future_end.end(res.map_err(fn)));
+        const on = (res: Result<Item, Error>) => { future_end.end(res.map_err(fn)); };
+        this.end(on);
+        future_end
+            .start(() => { this.start(); })
+            .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     then<NewItem, NewError>(fn: (res: Result<Item, Error>) => Future<NewItem, NewError>): Future<NewItem, NewError> {
         const [future_end, future] = Async<NewItem, NewError>();
-        this.end(res => fn(res).end(res => future_end.end(res)));
+        const on = (res: Result<Item, Error>) => {
+            const other = fn(res);
+            const on = (res: Result<NewItem, NewError>) => { future_end.end(res); };
+            other.end(on).start();
+            future_end.abort(() => other.unend(on).abort());
+        };
+        this.end(on);
+        future_end
+            .start(() => this.start())
+            .abort(() => this.unend(on).abort());
         return future;
     }
 
     and<NewItem>(other: Future<NewItem, Error>): Future<NewItem, Error> {
         const [future_end, future] = Async<NewItem, Error>();
-        this.end(res => res.then(_ => other.end(res => future_end.end(res)),
-            err => { future_end.err(err); return this as any as Future<NewItem, Error>; }));
+        const on = (res: Result<Item, Error>) => {
+            res.then(_ => {
+                const on = (res: Result<NewItem, Error>) => { future_end.end(res); };
+                other.end(on).start();
+                future_end.abort(() => other.unend(on).abort());
+            }, err => {
+                future_end.err(err);
+            });
+        };
+        this.end(on);
+        future_end
+            .start(() => { this.start(); })
+            .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     and_then<NewItem>(fn: (item: Item) => Future<NewItem, Error>): Future<NewItem, Error> {
         const [future_end, future] = Async<NewItem, Error>();
-        this.end(res => res.then(item => fn(item).end(res => future_end.end(res)),
-            err => { future_end.err(err); return this as any as Future<NewItem, Error>; }));
+        const on = (res: Result<Item, Error>) => {
+            res.then(item => {
+                const other = fn(item);
+                const on = (res: Result<NewItem, Error>) => { future_end.end(res); };
+                other.end(on).start();
+                future_end.abort(() => { other.unend(on).abort(); });
+            }, err => {
+                future_end.err(err);
+            });
+        };
+        this.end(on);
+        future_end
+            .start(() => { this.start(); })
+            .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     or<NewError>(other: Future<Item, NewError>): Future<Item, NewError> {
         const [future_end, future] = Async<Item, NewError>();
-        this.end(res => res.then(item => future_end.ok(item), err => other.end(res => future_end.end(res))));
+        const on = (res: Result<Item, Error>) => {
+            res.then(item => {
+                future_end.ok(item);
+            }, err => {
+                const on = (res: Result<Item, NewError>) => { future_end.end(res); };
+                other.end(on).start();
+                future_end.abort(() => { other.unend(on).abort(); });
+            });
+        };
+        this.end(on);
+        future_end
+            .start(() => { this.start(); })
+            .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     or_else<NewError>(fn: (err: Error) => Future<Item, NewError>): Future<Item, NewError> {
         const [future_end, future] = Async<Item, NewError>();
-        this.end(res => res.then(item => future_end.ok(item), err => fn(err).end(res => future_end.end(res))));
+        const on = (res: Result<Item, Error>) => {
+            res.then(item => {
+                future_end.ok(item);
+            }, err => {
+                const other = fn(err);
+                const on = (res: Result<Item, NewError>) => { future_end.end(res); };
+                other.end(on).start();
+                future_end.abort(() => { other.unend(on).abort(); });
+            });
+        };
+        this.end(on);
+        future_end
+            .start(() => { this.start(); })
+            .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     select(other: Future<Item, Error>): Future<Item, Error> {
         const [future_end, future] = Async<Item, Error>();
         const on_this = (res: Result<Item, Error>) => {
-            other.unend(on_other);
+            other.unend(on_other).abort();
             future_end.end(res);
         };
         const on_other = (res: Result<Item, Error>) => {
-            this.unend(on_this);
+            this.unend(on_this).abort();
             future_end.end(res);
         };
         this.end(on_this);
         other.end(on_other);
+        future_end
+            .start(() => {
+                this.start();
+                other.start();
+            })
+            .abort(() => {
+                this.unend(on_this).abort();
+                other.unend(on_other).abort();
+            });
         return future;
     }
 
     select_either<OtherItem, OtherError>(other: Future<OtherItem, OtherError>): Future<Either<Item, OtherItem>, Either<Error, OtherError>> {
         const [future_end, future] = Async<Either<Item, OtherItem>, Either<Error, OtherError>>();
         const on_this = (res: Result<Item, Error>) => {
-            other.unend(on_other);
+            other.unend(on_other).abort();
             future_end.end(res.map(A).map_err(A) as Result<Either<Item, OtherItem>, Either<Error, OtherError>>);
         };
         const on_other = (res: Result<OtherItem, OtherError>) => {
-            this.unend(on_this);
+            this.unend(on_this).abort();
             future_end.end(res.map(B).map_err(B) as Result<Either<Item, OtherItem>, Either<Error, OtherError>>);
         };
         this.end(on_this);
         other.end(on_other);
+        future_end
+            .start(() => { this.start(); other.start(); })
+            .abort(() => { this.unend(on_this).abort(); other.unend(on_other).abort(); });
         return future;
     }
 
@@ -117,26 +201,29 @@ class FutureAsync<Item, Error> implements Future<Item, Error> {
         const [future_end, future] = Async<[Item, OtherItem], Error>();
         let item_this: Option<Item> = None();
         let item_other: Option<OtherItem> = None();
-        const on_end_this = (res: Result<Item, Error>) => {
+        const on_this = (res: Result<Item, Error>) => {
             res.then(item_this_raw => {
                 item_other.map_or_else(() => { item_this = Some(item_this_raw); },
                     item_other_raw => future_end.ok([item_this_raw, item_other_raw]));
             }, error => {
-                other.unend(on_end_other);
+                other.unend(on_other).abort();
                 future_end.err(error);
             });
         };
-        const on_end_other = (res: Result<OtherItem, Error>) => {
+        const on_other = (res: Result<OtherItem, Error>) => {
             res.then(item_other_raw => {
                 item_this.map_or_else(() => { item_other = Some(item_other_raw) },
                     item_this_raw => future_end.ok([item_this_raw, item_other_raw]));
             }, error => {
-                this.unend(on_end_this);
+                this.unend(on_this).abort();
                 future_end.err(error);
             });
         };
-        this.end(on_end_this);
-        other.end(on_end_other);
+        this.end(on_this);
+        other.end(on_other);
+        future_end
+            .start(() => { this.start(); other.start(); })
+            .abort(() => { this.unend(on_this).abort(); other.unend(on_other).abort(); });
         return future;
     }
 
@@ -169,6 +256,14 @@ class FutureAsync<Item, Error> implements Future<Item, Error> {
         this._.off_err(fn);
         return this;
     }
+
+    start() {
+        this._.start();
+    }
+
+    abort() {
+        this._.abort();
+    }
 }
 
 function on_fn<Fn>(fns: Fn[], fn: Fn) {
@@ -185,16 +280,22 @@ function off_fn<Fn>(fns: Fn[], fn: Fn) {
     }
 }
 
-interface FutureAsyncListeners<Item, Error> {
+interface FutureAsyncHandlers<Item, Error> {
     end: ((res: Result<Item, Error>) => void)[];
     ok: ((item: Item) => void)[];
     err: ((error: Error) => void)[];
+
+    /* feedback hooks */
+    start: Option<() => void>; /* actually start task */
+    abort: Option<() => void>; /* abort started task */
 }
 
-type FutureAsyncState<Item, Error> = Result<Result<Item, Error>, FutureAsyncListeners<Item, Error>>;
+type FutureAsyncState<Item, Error> = Result<Result<Item, Error>, FutureAsyncHandlers<Item, Error>>;
+
+function dummy_fn() { }
 
 class FutureAsyncControl<Item, Error> {
-    private _: FutureAsyncState<Item, Error> = Err({ end: [], ok: [], err: [] });
+    private _: FutureAsyncState<Item, Error> = Err({ end: [], ok: [], err: [], start: None<() => void>(), abort: None<() => void>() });
 
     on_end(fn: (res: Result<Item, Error>) => void) {
         this._.map_or_else(({ end }) => on_fn(end, fn), fn);
@@ -212,24 +313,59 @@ class FutureAsyncControl<Item, Error> {
 
     off_end(fn: (res: Result<Item, Error>) => void) {
         this._.map_or_else(({ end }) => off_fn(end, fn),
-            res => undefined);
+            dummy_fn);
     }
 
     off_ok(fn: (item: Item) => void) {
         this._.map_or_else(({ ok }) => off_fn(ok, fn),
-            res => undefined);
+            dummy_fn);
     }
 
     off_err(fn: (error: Error) => void) {
         this._.map_or_else(({ err }) => off_fn(err, fn),
-            res => undefined);
+            dummy_fn);
     }
 
-    end(res: Result<Item, Error>, fn: (cbs: FutureAsyncListeners<Item, Error>) => void) {
+    end(res: Result<Item, Error>, fn: (cbs: FutureAsyncHandlers<Item, Error>) => void) {
         this._.map_or_else((cbs) => {
             this._ = Ok(res);
             fn(cbs);
-        }, res => undefined);
+        }, dummy_fn);
+    }
+
+    on_start(fn: () => void) {
+        this._.map_or_else((cbs) => {
+            cbs.start = Some(fn);
+        }, dummy_fn);
+    }
+
+    on_abort(fn: () => void) {
+        this._.map_or_else((cbs) => {
+            cbs.abort = Some(fn);
+        }, dummy_fn);
+    }
+
+    start() {
+        this._.map_or_else((cbs) => {
+            if (cbs.start.is_some) {
+                const start = cbs.start.unwrap();
+                cbs.start = None();
+                start();
+            }
+        }, dummy_fn);
+    }
+
+    abort() {
+        this._.map_or_else((cbs) => {
+            if (cbs.abort.is_some &&
+                cbs.end.length == 0 &&
+                cbs.ok.length == 0 &&
+                cbs.err.length == 0) {
+                const abort = cbs.abort.unwrap();
+                cbs.abort = None();
+                abort();
+            }
+        }, dummy_fn);
     }
 }
 
@@ -263,6 +399,16 @@ class FutureAsyncEnd<Item, Error> implements FutureEnd<Item, Error> {
 
     err(error: Error) {
         this.end(Err(error));
+    }
+
+    start(fn: () => void): FutureAsyncEnd<Item, Error> {
+        this._.on_start(fn);
+        return this;
+    }
+
+    abort(fn: () => void): FutureAsyncEnd<Item, Error> {
+        this._.on_abort(fn);
+        return this;
     }
 }
 
