@@ -29,38 +29,24 @@ describe('future', () => {
         a.end(res => deepEqual(res, Ok("abc"))).start();
         ea.end(Ok("abc"));
         b.end(res => deepEqual(res, Ok(false))).start();
-        eb.ok(false);
+        eb.end(Ok(false));
     });
 
     it('end err', () => {
         a.end(res => deepEqual(res, Err(new Error("Not a string")))).start();
-        ea.err(new Error("abc"));
+        ea.end(Err(new Error("abc")));
         b.end(res => deepEqual(res, Err("Not a boolean"))).start();
-        eb.end(Err("Not a boolean"));
-    });
-
-    it('ok', () => {
-        a.ok(item => deepEqual(item, "abc")).start();
-        ea.end(Ok("abc"));
-        b.ok(item => equal(item, true)).start();
-        eb.ok(true);
-    });
-
-    it('err', () => {
-        a.err(err => deepEqual(err, new Error("Not a string"))).start();
-        ea.err(new Error("Not a string"));
-        b.err(err => equal(err, "Not a boolean")).start();
         eb.end(Err("Not a boolean"));
     });
 
     it('map', () => {
         a.map(item => `${item}!!!`).end(res => deepEqual(res, Ok("Awesome!!!")));
-        ea.ok("Awesome");
+        ea.end(Ok("Awesome"));
     });
 
     it('map_err', () => {
         a.map_err(err => `${err.message}!!!`).end(res => deepEqual(res, Err("Not a string!!!"))).start();
-        ea.err(new Error("Not a string"));
+        ea.end(Err(new Error("Not a string")));
     });
 
     it('then', () => {
@@ -68,62 +54,62 @@ describe('future', () => {
             deepEqual(res, Ok("A string"));
             return b;
         }).end(res => deepEqual(res, Ok(true))).start();
-        ea.ok("A string");
-        eb.ok(true);
+        ea.end(Ok("A string"));
+        eb.end(Ok(true));
     });
 
     it('and 1', () => {
         a.and(c).end(res => deepEqual(res, Err(new Error("Not a string")))).start();
-        ea.err(new Error("Not a string"));
-        ec.ok(12);
+        ea.end(Err(new Error("Not a string")));
+        ec.end(Ok(12));
     });
 
     it('and 2', () => {
         a.and(c).end(res => deepEqual(res, Err(new Error("Not a number")))).start();
-        ea.ok("A string");
-        ec.err(new Error("Not a number"));
+        ea.end(Ok("A string"));
+        ec.end(Err(new Error("Not a number")));
     });
 
     it('and 2', () => {
         a.and(c).end(res => deepEqual(res, Err(new Error("Not a number")))).start();
-        ea.ok("A string");
-        ec.err(new Error("Not a number"));
+        ea.end(Ok("A string"));
+        ec.end(Err(new Error("Not a number")));
     });
 
     it('and 3', () => {
         a.and(c).end(res => deepEqual(res, Ok(12))).start();
-        ea.ok("A string");
-        ec.ok(12);
+        ea.end(Ok("A string"));
+        ec.end(Ok(12));
     });
 
     it('or 1', () => {
         b.or(d).end(res => deepEqual(res, Err("Bouncing"))).start();
-        eb.err("Unknown");
-        ed.err("Bouncing");
+        eb.end(Err("Unknown"));
+        ed.end(Err("Bouncing"));
     });
 
     it('or 2', () => {
         b.or(d).end(res => deepEqual(res, Ok(false))).start();
-        eb.ok(false);
-        ed.err("Bouncing");
+        eb.end(Ok(false));
+        ed.end(Err("Bouncing"));
     });
 
     it('or 3', () => {
         b.or(d).end(res => deepEqual(res, Ok(true))).start();
-        eb.err("Unknown");
-        ed.ok(true);
+        eb.end(Err("Unknown"));
+        ed.end(Ok(true));
     });
 
     it('or 4', () => {
         b.or(d).end(res => deepEqual(res, Ok(false))).start();
-        eb.ok(false);
-        ed.ok(true);
+        eb.end(Ok(false));
+        ed.end(Ok(true));
     });
 
     it('or 5', () => {
         b.or(d).end(res => deepEqual(res, Ok(true))).start();
-        eb.ok(true);
-        ed.ok(false);
+        eb.end(Ok(true));
+        ed.end(Ok(false));
     });
 
     it('and then 1', () => {
@@ -131,8 +117,8 @@ describe('future', () => {
             deepEqual(a, "A string");
             return c;
         }).end(res => deepEqual(res, Ok(12))).start();
-        ea.ok("A string");
-        ec.ok(12);
+        ea.end(Ok("A string"));
+        ec.end(Ok(12));
     });
 
     it('and then 2', () => {
@@ -140,8 +126,8 @@ describe('future', () => {
             equal(a, "A string");
             return c;
         }).end(res => deepEqual(res, Err(new Error("Not a string")))).start();
-        ea.err(new Error("Not a string"));
-        ec.ok(12);
+        ea.end(Err(new Error("Not a string")));
+        ec.end(Ok(12));
     });
 
     it('or_else 1', () => {
@@ -149,8 +135,8 @@ describe('future', () => {
             deepEqual(err, "Not a value");
             return d;
         }).end(res => deepEqual(res, Ok(true))).start();
-        eb.ok(true);
-        ed.ok(false);
+        eb.end(Ok(true));
+        ed.end(Ok(false));
     });
 
     it('or_else 2', () => {
@@ -158,8 +144,8 @@ describe('future', () => {
             deepEqual(err, "Not a value");
             return d;
         }).end(res => deepEqual(res, Ok(false))).start();
-        eb.ok(false);
-        ed.ok(true);
+        eb.end(Ok(false));
+        ed.end(Ok(true));
     });
 
     it('or_else 3', () => {
@@ -167,8 +153,8 @@ describe('future', () => {
             deepEqual(err, "Not a value");
             return d;
         }).end(res => deepEqual(res, Ok(true))).start();
-        eb.err("Not a value");
-        ed.ok(true);
+        eb.end(Err("Not a value"));
+        ed.end(Ok(true));
     });
 
     it('or_else 4', () => {
@@ -176,68 +162,68 @@ describe('future', () => {
             deepEqual(err, "Not a value");
             return d;
         }).end(res => deepEqual(res, Ok(false))).start();
-        ed.err("Not a value");
-        eb.ok(false);
+        ed.end(Err("Not a value"));
+        eb.end(Ok(false));
     });
 
     it('select 1', () => {
         b.select(d).end(res => deepEqual(res, Ok(false))).start();
-        eb.ok(false);
-        ed.err("Not a value");
+        eb.end(Ok(false));
+        ed.end(Err("Not a value"));
     });
 
     it('select 2', () => {
         b.select(d).end(res => deepEqual(res, Err("Not a value"))).start();
-        ed.err("Not a value");
-        eb.ok(false);
+        ed.end(Err("Not a value"));
+        eb.end(Ok(false));
     });
 
     it('select_either 1', () => {
         a.select_either(b).end(res => deepEqual(res, Ok(A("abc")))).start();
-        ea.ok("abc");
-        eb.ok(false);
+        ea.end(Ok("abc"));
+        eb.end(Ok(false));
     });
 
     it('select_either 2', () => {
         a.select_either(b).end(res => deepEqual(res, Ok(B(true)))).start();
-        eb.ok(true);
-        ea.ok("abc");
+        eb.end(Ok(true));
+        ea.end(Ok("abc"));
     });
 
     it('select_either 3', () => {
         a.select_either(b).end(res => deepEqual(res, Err(A(new Error("def"))))).start();
-        ea.err(new Error("def"));
-        eb.ok(false);
+        ea.end(Err(new Error("def")));
+        eb.end(Ok(false));
     });
 
     it('select_either 4', () => {
         a.select_either(b).end(res => deepEqual(res, Err(B("???")))).start();
-        eb.err("???");
-        ea.ok("abc");
+        eb.end(Err("???"));
+        ea.end(Ok("abc"));
     });
 
     it('join 1', () => {
         a.join(c).end(res => deepEqual(res, Ok(["abc", 123]))).start();
-        ec.ok(123);
-        ea.ok("abc");
+        ec.end(Ok(123));
+        ea.end(Ok("abc"));
     });
 
     it('join 2', () => {
         a.join(c).end(res => deepEqual(res, Err(new Error("def")))).start();
-        ea.err(new Error("def"));
-        ec.ok(123);
+        ea.end(Err(new Error("def")));
+        ec.end(Ok(123));
     });
 
     it('join 3', () => {
         a.join(c).end(res => deepEqual(res, Err(new Error("xyz")))).start();
-        ea.ok("def");
-        ec.err(new Error("xyz"));
+        ea.end(Ok("def"));
+        ec.end(Err(new Error("xyz")));
     });
 
     it('join 4', () => {
         a.join(c).end(res => deepEqual(res, Err(new Error("xyz")))).start();
-        ec.err(new Error("xyz"));
-        ea.ok("def");
+        ec.end(Err(new Error("xyz")));
+        ea.end(Ok("def"));
     });
 
     it('join_all 1', () => {
@@ -247,10 +233,10 @@ describe('future', () => {
             c.map(a => `${a}`),
             d.map(a => `${!a}`).map_err(e => new Error(e)),
         ]).end(res => deepEqual(res, Ok(["xyz", "false", "123", "false"]))).start();
-        ec.ok(123);
-        ea.ok("xyz");
-        eb.ok(false);
-        ed.ok(true);
+        ec.end(Ok(123));
+        ea.end(Ok("xyz"));
+        eb.end(Ok(false));
+        ed.end(Ok(true));
     });
 
     it('join_all 2', () => {
@@ -260,10 +246,10 @@ describe('future', () => {
             c.map(a => `${a}`),
             d.map(a => `${!a}`).map_err(e => new Error(e)),
         ]).end(res => deepEqual(res, Err(new Error("hmm...")))).start();
-        ec.ok(123);
-        ea.ok("xyz");
-        eb.err("hmm...");
-        ed.ok(true);
+        ec.end(Ok(123));
+        ea.end(Ok("xyz"));
+        eb.end(Err("hmm..."));
+        ed.end(Ok(true));
     });
 
     it('join_all 3', () => {
@@ -273,10 +259,10 @@ describe('future', () => {
             c.map(a => `${a}`),
             d.map(a => `${!a}`).map_err(e => new Error(e)),
         ]).end(res => deepEqual(res, Err(new Error("Something went wrong")))).start();
-        ec.ok(123);
-        ea.err(new Error("Something went wrong"));
-        eb.err("hmm...");
-        ed.ok(true);
+        ec.end(Ok(123));
+        ea.end(Err(new Error("Something went wrong")));
+        eb.end(Err("hmm..."));
+        ed.end(Ok(true));
     });
 
     it('join_all 4', () => {
@@ -286,9 +272,9 @@ describe('future', () => {
             c.map(a => `${a}`),
             d.map(a => `${!a}`).map_err(e => new Error(e)),
         ]).end(res => deepEqual(res, Err(new Error("Not a number")))).start();
-        ec.err(new Error("Not a number"));
-        ea.err(new Error("Something went wrong"));
-        eb.err("hmm...");
-        ed.ok(true);
+        ec.end(Err(new Error("Not a number")));
+        ea.end(Err(new Error("Something went wrong")));
+        eb.end(Err("hmm..."));
+        ed.end(Ok(true));
     });
 });
