@@ -265,43 +265,42 @@ interface FutureAsyncHandlers<Item, Error> {
     abort: Option<() => void>; /* abort started task */
 }
 
-type FutureAsyncState<Item, Error> = Result<Result<Item, Error>, FutureAsyncHandlers<Item, Error>>;
+type FutureAsyncState<Item, Error> = Either<FutureAsyncHandlers<Item, Error>, Result<Item, Error>>;
 
 function dummy_fn() { }
 
 class FutureAsyncControl<Item, Error> {
-    private _: FutureAsyncState<Item, Error> = Err({ end: [], start: None<() => void>(), abort: None<() => void>() });
+    private _: FutureAsyncState<Item, Error> = A({ end: [], start: None<() => void>(), abort: None<() => void>() });
 
     on_end(fn: (res: Result<Item, Error>) => void) {
-        this._.map_or_else(({ end }) => on_fn(end, fn), fn);
+        this._.map_b_or_else(({ end }) => on_fn(end, fn), fn);
     }
 
     off_end(fn: (res: Result<Item, Error>) => void) {
-        this._.map_or_else(({ end }) => off_fn(end, fn),
-            dummy_fn);
+        this._.map_b_or_else(({ end }) => off_fn(end, fn), dummy_fn);
     }
 
     end(res: Result<Item, Error>, fn: (cbs: FutureAsyncHandlers<Item, Error>) => void) {
-        this._.map_or_else((cbs) => {
-            this._ = Ok(res);
+        this._.map_b_or_else((cbs) => {
+            this._ = B(res);
             fn(cbs);
         }, dummy_fn);
     }
 
     on_start(fn: () => void) {
-        this._.map_or_else((cbs) => {
+        this._.map_b_or_else((cbs) => {
             cbs.start = Some(fn);
         }, dummy_fn);
     }
 
     on_abort(fn: () => void) {
-        this._.map_or_else((cbs) => {
+        this._.map_b_or_else((cbs) => {
             cbs.abort = Some(fn);
         }, dummy_fn);
     }
 
     start() {
-        this._.map_or_else((cbs) => {
+        this._.map_b_or_else((cbs) => {
             if (cbs.start.is_some) {
                 const start = cbs.start.unwrap();
                 cbs.start = None();
@@ -311,7 +310,7 @@ class FutureAsyncControl<Item, Error> {
     }
 
     abort() {
-        this._.map_or_else((cbs) => {
+        this._.map_b_or_else((cbs) => {
             if (cbs.abort.is_some &&
                 cbs.end.length == 0) {
                 const abort = cbs.abort.unwrap();
