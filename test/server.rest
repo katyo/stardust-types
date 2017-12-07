@@ -1,0 +1,24 @@
+# -*- restclient -*-
+:base = http://localhost:8182
+#
+# get ascii
+GET :base/xhr/ascii
+#
+# get utf8
+GET :base/xhr/utf8
+#
+# get error
+GET :base/xhr/error
+#
+# put ascii
+PUT :base/xhr/ascii
+Content-Type: text/plain
+
+Not very long ASCII text content.
+#
+# put utf8
+PUT :base/xhr/utf8
+Content-Type: text/plain; charset=utf8
+
+Не очень длинное UTF-8 содержимое.
+#

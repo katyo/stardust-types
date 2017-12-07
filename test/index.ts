@@ -4,3 +4,4 @@ import './either';
 import './future';
 
 import './timer';
+import './request';

@@ -19,6 +19,7 @@
         "src/either.ts",
         "src/future.ts",
         "src/stream.ts",
-        "src/timer.ts"
+        "src/timer.ts",
+        "src/request.ts"
     ]
 }
