@@ -15,7 +15,7 @@
   },
   "launchers": {
     "nodejs": {
-      "command": "mocha test-out.js -R tap",
+      "command": "mocha -r ts-node/register test/index.ts -R tap",
       "protocol": "tap"
     }
   },

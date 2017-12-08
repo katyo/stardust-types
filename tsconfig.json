@@ -20,6 +20,9 @@
         "src/future.ts",
         "src/stream.ts",
         "src/timer.ts",
-        "src/request.ts"
+        "src/request.ts",
+        "src/request/backend.ts",
+        "src/request/browser.ts",
+        "src/request/node.ts"
     ]
 }
