@@ -1,10 +1,10 @@
-import { Ok } from './result';
+import { Result } from './result';
 import { Future, Async } from './future';
 
-export function timeout(msec: number): Future<undefined, undefined> {
-    const [future_end, future] = Async<undefined, undefined>();
+export function timeout<Item, Error>(msec: number, res: Result<Item, Error>): Future<Item, Error> {
+    const [end, future] = Async<Item, Error>();
     let timer: any;
-    future_end.start(() => { timer = setTimeout(() => { future_end.end(Ok(undefined)); }, msec); });
-    future_end.abort(() => { clearTimeout(timer); });
+    end.start(() => { timer = setTimeout(() => { end.end(res); }, msec); });
+    end.abort(() => { clearTimeout(timer); });
     return future;
 }
