@@ -1,10 +1,11 @@
 import { Result } from './result';
-import { Future, Async } from './future';
+import { Future, channel } from './future';
 
 export function timeout<Item, Error>(msec: number, res: Result<Item, Error>): Future<Item, Error> {
-    const [end, future] = Async<Item, Error>();
+    const [task, future] = channel<Item, Error>();
     let timer: any;
-    end.start(() => { timer = setTimeout(() => { end.end(res); }, msec); });
-    end.abort(() => { clearTimeout(timer); });
+    task.start(() => { timer = setTimeout(() => {
+        task.end(res);
+    }, msec); }).abort(() => { clearTimeout(timer); });
     return future;
 }

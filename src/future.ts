@@ -24,143 +24,143 @@ export interface Future<Item, Error> {
     abort(): void;
 }
 
-export interface FutureEnd<Item, Error> {
+export interface Task<Item, Error> {
     end(res: Result<Item, Error>): void;
     
     /* feedback */
-    start(fn: () => void): FutureEnd<Item, Error>;
-    abort(fn: () => void): FutureEnd<Item, Error>;
+    start(fn: () => void): Task<Item, Error>;
+    abort(fn: () => void): Task<Item, Error>;
 }
 
-class FutureAsync<Item, Error> implements Future<Item, Error> {
-    private _: FutureAsyncControl<Item, Error>;
+class AsyncFuture<Item, Error> implements Future<Item, Error> {
+    private _: AsyncControl<Item, Error>;
 
-    constructor(ctrl: FutureAsyncControl<Item, Error>) {
+    constructor(ctrl: AsyncControl<Item, Error>) {
         this._ = ctrl;
     }
 
     map<NewItem>(fn: (item: Item) => NewItem): Future<NewItem, Error> {
-        const [future_end, future] = Async<NewItem, Error>();
-        const on = (res: Result<Item, Error>) => { future_end.end(res.map(fn)); };
+        const [task, future] = channel<NewItem, Error>();
+        const on = (res: Result<Item, Error>) => { task.end(res.map(fn)); };
         this.end(on);
-        future_end
+        task
             .start(() => { this.start(); })
             .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     map_err<NewError>(fn: (error: Error) => NewError): Future<Item, NewError> {
-        const [future_end, future] = Async<Item, NewError>();
-        const on = (res: Result<Item, Error>) => { future_end.end(res.map_err(fn)); };
+        const [task, future] = channel<Item, NewError>();
+        const on = (res: Result<Item, Error>) => { task.end(res.map_err(fn)); };
         this.end(on);
-        future_end
+        task
             .start(() => { this.start(); })
             .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     then<NewItem, NewError>(fn: (res: Result<Item, Error>) => Future<NewItem, NewError>): Future<NewItem, NewError> {
-        const [future_end, future] = Async<NewItem, NewError>();
+        const [task, future] = channel<NewItem, NewError>();
         const on = (res: Result<Item, Error>) => {
             const other = fn(res);
-            const on = (res: Result<NewItem, NewError>) => { future_end.end(res); };
+            const on = (res: Result<NewItem, NewError>) => { task.end(res); };
             other.end(on).start();
-            future_end.abort(() => other.unend(on).abort());
+            task.abort(() => other.unend(on).abort());
         };
         this.end(on);
-        future_end
+        task
             .start(() => this.start())
             .abort(() => this.unend(on).abort());
         return future;
     }
 
     and<NewItem>(other: Future<NewItem, Error>): Future<NewItem, Error> {
-        const [future_end, future] = Async<NewItem, Error>();
+        const [task, future] = channel<NewItem, Error>();
         const on = (res: Result<Item, Error>) => {
             res.then(_ => {
-                const on = (res: Result<NewItem, Error>) => { future_end.end(res); };
+                const on = (res: Result<NewItem, Error>) => { task.end(res); };
                 other.end(on).start();
-                future_end.abort(() => other.unend(on).abort());
+                task.abort(() => other.unend(on).abort());
             }, err => {
-                future_end.end(Err(err));
+                task.end(Err(err));
             });
         };
         this.end(on);
-        future_end
+        task
             .start(() => { this.start(); })
             .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     and_then<NewItem>(fn: (item: Item) => Future<NewItem, Error>): Future<NewItem, Error> {
-        const [future_end, future] = Async<NewItem, Error>();
+        const [task, future] = channel<NewItem, Error>();
         const on = (res: Result<Item, Error>) => {
             res.then(item => {
                 const other = fn(item);
-                const on = (res: Result<NewItem, Error>) => { future_end.end(res); };
+                const on = (res: Result<NewItem, Error>) => { task.end(res); };
                 other.end(on).start();
-                future_end.abort(() => { other.unend(on).abort(); });
+                task.abort(() => { other.unend(on).abort(); });
             }, err => {
-                future_end.end(Err(err));
+                task.end(Err(err));
             });
         };
         this.end(on);
-        future_end
+        task
             .start(() => { this.start(); })
             .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     or<NewError>(other: Future<Item, NewError>): Future<Item, NewError> {
-        const [future_end, future] = Async<Item, NewError>();
+        const [task, future] = channel<Item, NewError>();
         const on = (res: Result<Item, Error>) => {
             res.then(item => {
-                future_end.end(Ok(item));
+                task.end(Ok(item));
             }, err => {
-                const on = (res: Result<Item, NewError>) => { future_end.end(res); };
+                const on = (res: Result<Item, NewError>) => { task.end(res); };
                 other.end(on).start();
-                future_end.abort(() => { other.unend(on).abort(); });
+                task.abort(() => { other.unend(on).abort(); });
             });
         };
         this.end(on);
-        future_end
+        task
             .start(() => { this.start(); })
             .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     or_else<NewError>(fn: (err: Error) => Future<Item, NewError>): Future<Item, NewError> {
-        const [future_end, future] = Async<Item, NewError>();
+        const [task, future] = channel<Item, NewError>();
         const on = (res: Result<Item, Error>) => {
             res.then(item => {
-                future_end.end(Ok(item));
+                task.end(Ok(item));
             }, err => {
                 const other = fn(err);
-                const on = (res: Result<Item, NewError>) => { future_end.end(res); };
+                const on = (res: Result<Item, NewError>) => { task.end(res); };
                 other.end(on).start();
-                future_end.abort(() => { other.unend(on).abort(); });
+                task.abort(() => { other.unend(on).abort(); });
             });
         };
         this.end(on);
-        future_end
+        task
             .start(() => { this.start(); })
             .abort(() => { this.unend(on).abort(); });
         return future;
     }
 
     select(other: Future<Item, Error>): Future<Item, Error> {
-        const [future_end, future] = Async<Item, Error>();
+        const [task, future] = channel<Item, Error>();
         const on_this = (res: Result<Item, Error>) => {
             other.unend(on_other).abort();
-            future_end.end(res);
+            task.end(res);
         };
         const on_other = (res: Result<Item, Error>) => {
             this.unend(on_this).abort();
-            future_end.end(res);
+            task.end(res);
         };
         this.end(on_this);
         other.end(on_other);
-        future_end
+        task
             .start(() => {
                 this.start();
                 other.start();
@@ -173,52 +173,52 @@ class FutureAsync<Item, Error> implements Future<Item, Error> {
     }
 
     select_either<OtherItem, OtherError>(other: Future<OtherItem, OtherError>): Future<Either<Item, OtherItem>, Either<Error, OtherError>> {
-        const [future_end, future] = Async<Either<Item, OtherItem>, Either<Error, OtherError>>();
+        const [task, future] = channel<Either<Item, OtherItem>, Either<Error, OtherError>>();
         const on_this = (res: Result<Item, Error>) => {
             other.unend(on_other).abort();
-            future_end.end(res.map(A).map_err(A) as Result<Either<Item, OtherItem>, Either<Error, OtherError>>);
+            task.end(res.map(A).map_err(A) as Result<Either<Item, OtherItem>, Either<Error, OtherError>>);
         };
         const on_other = (res: Result<OtherItem, OtherError>) => {
             this.unend(on_this).abort();
-            future_end.end(res.map(B).map_err(B) as Result<Either<Item, OtherItem>, Either<Error, OtherError>>);
+            task.end(res.map(B).map_err(B) as Result<Either<Item, OtherItem>, Either<Error, OtherError>>);
         };
         this.end(on_this);
         other.end(on_other);
-        future_end
+        task
             .start(() => { this.start(); other.start(); })
             .abort(() => { this.unend(on_this).abort(); other.unend(on_other).abort(); });
         return future;
     }
 
     join<OtherItem>(other: Future<OtherItem, Error>): Future<[Item, OtherItem], Error> {
-        const [future_end, future] = Async<[Item, OtherItem], Error>();
+        const [task, future] = channel<[Item, OtherItem], Error>();
         let item_this: Option<Item> = None();
         let item_other: Option<OtherItem> = None();
         const on_this = (res: Result<Item, Error>) => {
             res.then(item_this_raw => {
                 item_other.map_or_else(() => { item_this = Some(item_this_raw); },
                                        item_other_raw => {
-                                           future_end.end(Ok([item_this_raw, item_other_raw] as [Item, OtherItem]));
+                                           task.end(Ok([item_this_raw, item_other_raw] as [Item, OtherItem]));
                                        });
             }, error => {
                 other.unend(on_other).abort();
-                future_end.end(Err(error));
+                task.end(Err(error));
             });
         };
         const on_other = (res: Result<OtherItem, Error>) => {
             res.then(item_other_raw => {
                 item_this.map_or_else(() => { item_other = Some(item_other_raw); },
                                       item_this_raw => {
-                                          future_end.end(Ok([item_this_raw, item_other_raw] as [Item, OtherItem]));
+                                          task.end(Ok([item_this_raw, item_other_raw] as [Item, OtherItem]));
                                       });
             }, error => {
                 this.unend(on_this).abort();
-                future_end.end(Err(error));
+                task.end(Err(error));
             });
         };
         this.end(on_this);
         other.end(on_other);
-        future_end
+        task
             .start(() => { this.start(); other.start(); })
             .abort(() => { this.unend(on_this).abort(); other.unend(on_other).abort(); });
         return future;
@@ -243,6 +243,9 @@ class FutureAsync<Item, Error> implements Future<Item, Error> {
     }
 }
 
+function dummy_fn() {
+}
+
 function on_fn<Fn>(fns: Fn[], fn: Fn) {
     const i = fns.indexOf(fn);
     if (i < 0) {
@@ -257,20 +260,21 @@ function off_fn<Fn>(fns: Fn[], fn: Fn) {
     }
 }
 
-interface FutureAsyncHandlers<Item, Error> {
-    end: ((res: Result<Item, Error>) => void)[];
+type AsyncCallback<Item, Error> = (res: Result<Item, Error>) => void;
+type AsyncHook = () => void;
+
+interface AsyncHandlers<Item, Error> {
+    end: AsyncCallback<Item, Error>[];
 
     /* feedback hooks */
-    start: Option<() => void>; /* actually start task */
-    abort: Option<() => void>; /* abort started task */
+    start: Option<AsyncHook>; /* actually start task */
+    abort: Option<AsyncHook>; /* abort started task */
 }
 
-type FutureAsyncState<Item, Error> = Either<FutureAsyncHandlers<Item, Error>, Result<Item, Error>>;
+type AsyncState<Item, Error> = Either<AsyncHandlers<Item, Error>, Result<Item, Error>>;
 
-function dummy_fn() { }
-
-class FutureAsyncControl<Item, Error> {
-    private _: FutureAsyncState<Item, Error> = A({ end: [], start: None<() => void>(), abort: None<() => void>() });
+class AsyncControl<Item, Error> {
+    private _: AsyncState<Item, Error> = A({ end: [], start: None<AsyncHook>(), abort: None<AsyncHook>() });
 
     on_end(fn: (res: Result<Item, Error>) => void) {
         this._.map_b_or_else(({ end }) => on_fn(end, fn), fn);
@@ -280,7 +284,7 @@ class FutureAsyncControl<Item, Error> {
         this._.map_b_or_else(({ end }) => off_fn(end, fn), dummy_fn);
     }
 
-    end(res: Result<Item, Error>, fn: (cbs: FutureAsyncHandlers<Item, Error>) => void) {
+    end(res: Result<Item, Error>, fn: (cbs: AsyncHandlers<Item, Error>) => void) {
         this._.map_b_or_else((cbs) => {
             this._ = B(res);
             fn(cbs);
@@ -321,10 +325,10 @@ class FutureAsyncControl<Item, Error> {
     }
 }
 
-class FutureAsyncEnd<Item, Error> implements FutureEnd<Item, Error> {
-    private _: FutureAsyncControl<Item, Error>;
+class AsyncTask<Item, Error> implements Task<Item, Error> {
+    private _: AsyncControl<Item, Error>;
 
-    constructor(ctrl: FutureAsyncControl<Item, Error>) {
+    constructor(ctrl: AsyncControl<Item, Error>) {
         this._ = ctrl;
     }
 
@@ -336,45 +340,45 @@ class FutureAsyncEnd<Item, Error> implements FutureEnd<Item, Error> {
         });
     }
 
-    start(fn: () => void): FutureAsyncEnd<Item, Error> {
+    start(fn: () => void): AsyncTask<Item, Error> {
         this._.on_start(fn);
         return this;
     }
 
-    abort(fn: () => void): FutureAsyncEnd<Item, Error> {
+    abort(fn: () => void): AsyncTask<Item, Error> {
         this._.on_abort(fn);
         return this;
     }
 }
 
-export function Async<Item, Error>(): [FutureEnd<Item, Error>, Future<Item, Error>] {
-    const future_control = new FutureAsyncControl<Item, Error>();
-    const future = new FutureAsync<Item, Error>(future_control);
-    const future_end = new FutureAsyncEnd<Item, Error>(future_control);
-    return [future_end, future];
+export function channel<Item, Error>(): [Task<Item, Error>, Future<Item, Error>] {
+    const control = new AsyncControl<Item, Error>();
+    const task = new AsyncTask<Item, Error>(control);
+    const future = new AsyncFuture<Item, Error>(control);
+    return [task, future];
 }
 
-const never = new FutureAsync<undefined, undefined>(new FutureAsyncControl<undefined, undefined>());
+const async_never = new AsyncFuture<undefined, undefined>(new AsyncControl<undefined, undefined>());
 
-export function Never<Item, Error>(): Future<Item, Error> {
-    return never as any as Future<Item, Error>;
+export function never<Item, Error>(): Future<Item, Error> {
+    return async_never as any as Future<Item, Error>;
 }
 
-export function EndOk<Item, Error>(item: Item): Future<Item, Error> {
-    const [future_end, future] = Async<Item, Error>();
-    future_end.end(Ok(item));
+export function ok<Item, Error>(item: Item): Future<Item, Error> {
+    const [task, future] = channel<Item, Error>();
+    task.end(Ok(item));
     return future;
 }
 
-export function EndErr<Item, Error>(err: Error): Future<Item, Error> {
-    const [future_end, future] = Async<Item, Error>();
-    future_end.end(Err(err));
+export function err<Item, Error>(error: Error): Future<Item, Error> {
+    const [task, future] = channel<Item, Error>();
+    task.end(Err(error));
     return future;
 }
 
 export function join_all<Item, Error>(futures: Future<Item, Error>[]): Future<Item[], Error> {
     if (futures.length == 0) {
-        return Never();
+        return never();
     }
 
     let future: Future<Item[], Error> = futures[0].map(item => [item]);

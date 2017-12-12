@@ -1,5 +1,5 @@
 import { Ok, Err } from './result';
-import { Future, Async } from './future';
+import { Future, channel } from './future';
 import { Method, Headers, ReqFn, AbrFn } from './request/backend';
 import { request as browser_request } from './request/browser';
 //import { request as node_request } from './request/node';
@@ -163,11 +163,11 @@ export type ResponseStatus = InfoStatus | SuccessStatus | RedirectStatus | Clien
 export type ResponseError = Error;
 
 export function request(req: Request): Future<Response, ResponseError> {
-    const [future_end, future] = Async<Response, ResponseError>();
+    const [task, future] = channel<Response, ResponseError>();
 
     let abort: AbrFn;
     
-    future_end.start(() => {
+    task.start(() => {
         abort = request_backend(req.method, req.url, req.headers || {}, uploadable(req.method) ? req.body : undefined, downloadable(req.method), (code: number, message: string, headers: Headers, body?: Buffer) => {
             const status: ResponseStatus =
                 code < 200 ? new InfoStatus(code, message) :
@@ -179,9 +179,9 @@ export function request(req: Request): Future<Response, ResponseError> {
             if (body) {
                 res.body = body;
             }
-            future_end.end(Ok(res));
+            task.end(Ok(res));
         }, (error: Error) => {
-            future_end.end(Err(error));
+            task.end(Err(error));
         });
     }).abort(() => { abort(); });
 

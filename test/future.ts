@@ -1,28 +1,28 @@
 import { equal, deepEqual } from 'assert';
-import { Future, FutureEnd, Async, join_all } from '../future';
+import { Future, Task, channel, join_all } from '../future';
 import { A, B } from '../either';
 import { Ok, Err } from '../result';
 
 describe('future', () => {
     let a: Future<string, Error>;
-    let ea: FutureEnd<string, Error>;
+    let ea: Task<string, Error>;
     let b: Future<boolean, string>;
-    let eb: FutureEnd<boolean, string>;
+    let eb: Task<boolean, string>;
     let c: Future<number, Error>;
-    let ec: FutureEnd<number, Error>;
+    let ec: Task<number, Error>;
     let d: Future<boolean, string>;
-    let ed: FutureEnd<boolean, string>;
+    let ed: Task<boolean, string>;
 
     beforeEach(() => {
-        ([ea, a] = Async());
-        ([eb, b] = Async());
-        ([ec, c] = Async());
-        ([ed, d] = Async());
+        ([ea, a] = channel());
+        ([eb, b] = channel());
+        ([ec, c] = channel());
+        ([ed, d] = channel());
     });
 
     it('ctor', () => {
-        deepEqual([ea, a], Async());
-        deepEqual([eb, b], Async());
+        deepEqual([ea, a], channel());
+        deepEqual([eb, b], channel());
     });
 
     it('end ok', () => {
