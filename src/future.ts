@@ -284,10 +284,12 @@ class AsyncControl<Item, Error> {
         this._.map_b_or_else(({ end }) => off_fn(end, fn), dummy_fn);
     }
 
-    end(res: Result<Item, Error>, fn: (cbs: AsyncHandlers<Item, Error>) => void) {
-        this._.map_b_or_else((cbs) => {
+    end(res: Result<Item, Error>) {
+        this._.map_b_or_else(({ end }) => {
             this._ = B(res);
-            fn(cbs);
+            for (const fn of end) {
+                fn(res);
+            }
         }, dummy_fn);
     }
 
@@ -333,11 +335,7 @@ class AsyncTask<Item, Error> implements Task<Item, Error> {
     }
 
     end(res: Result<Item, Error>) {
-        this._.end(res, ({ end }) => {
-            for (const fn of end) {
-                fn(res);
-            }
-        });
+        this._.end(res);
     }
 
     start(fn: () => void): AsyncTask<Item, Error> {
