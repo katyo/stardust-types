@@ -1,5 +1,5 @@
 import { equal, deepEqual } from 'assert';
-import { Future, Task, channel, join_all } from '../future';
+import { Future, Task, channel, join_all, never, ok as f_ok, err as f_err } from '../future';
 import { A, B } from '../either';
 import { Ok, Err } from '../result';
 
@@ -18,6 +18,27 @@ describe('future', () => {
         ([eb, b] = channel());
         ([ec, c] = channel());
         ([ed, d] = channel());
+    });
+
+    it('never', (done) => {
+        never().end(res => {
+            done(new Error("unexpected end"));
+        }).start();
+        setTimeout(() => {
+            done();
+        }, 100);
+    });
+
+    it('ok', () => {
+        f_ok(123).end(res => {
+            deepEqual(res, Ok(123));
+        }).start();
+    });
+
+    it('err', () => {
+        f_err("invalid value").end(res => {
+            deepEqual(res, Err("invalid value"));
+        }).start();
     });
 
     it('ctor', () => {
