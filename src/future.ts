@@ -26,6 +26,8 @@ export interface Future<Item, Error> {
 
 export interface Task<Item, Error> {
     end(res: Result<Item, Error>): void;
+    fail(err: Error): void;
+    done(item: Item): void;
     
     /* feedback */
     start(fn: () => void): Task<Item, Error>;
@@ -243,9 +245,6 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 }
 
-function dummy_fn() {
-}
-
 function on_fn<Fn>(fns: Fn[], fn: Fn) {
     const i = fns.indexOf(fn);
     if (i < 0) {
@@ -271,59 +270,59 @@ interface AsyncHandlers<Item, Error> {
     abort: Option<AsyncHook>; /* abort started task */
 }
 
-type AsyncState<Item, Error> = Either<AsyncHandlers<Item, Error>, Result<Item, Error>>;
+type AsyncState<Item, Error> = Option<AsyncHandlers<Item, Error>>;
 
 class AsyncControl<Item, Error> {
-    private _: AsyncState<Item, Error> = A({ end: [], start: None<AsyncHook>(), abort: None<AsyncHook>() });
+    private _: AsyncState<Item, Error> = Some({ end: [], start: None<AsyncHook>(), abort: None<AsyncHook>() });
 
     on_end(fn: (res: Result<Item, Error>) => void) {
-        this._.map_b_or_else(({ end }) => on_fn(end, fn), fn);
+        this._.map(({ end }) => on_fn(end, fn));
     }
 
     off_end(fn: (res: Result<Item, Error>) => void) {
-        this._.map_b_or_else(({ end }) => off_fn(end, fn), dummy_fn);
+        this._.map(({ end }) => off_fn(end, fn));
     }
 
     end(res: Result<Item, Error>) {
-        this._.map_b_or_else(({ end }) => {
-            this._ = B(res);
+        this._.map(({ end }) => {
+            this._ = None();
             for (const fn of end) {
                 fn(res);
             }
-        }, dummy_fn);
+        });
     }
 
     on_start(fn: () => void) {
-        this._.map_b_or_else((cbs) => {
+        this._.map((cbs) => {
             cbs.start = Some(fn);
-        }, dummy_fn);
+        });
     }
 
     on_abort(fn: () => void) {
-        this._.map_b_or_else((cbs) => {
+        this._.map((cbs) => {
             cbs.abort = Some(fn);
-        }, dummy_fn);
+        });
     }
 
     start() {
-        this._.map_b_or_else((cbs) => {
+        this._.map((cbs) => {
             if (cbs.start.is_some) {
                 const start = cbs.start.unwrap();
                 cbs.start = None();
                 start();
             }
-        }, dummy_fn);
+        });
     }
 
     abort() {
-        this._.map_b_or_else((cbs) => {
+        this._.map((cbs) => {
             if (cbs.abort.is_some &&
                 cbs.end.length == 0) {
                 const abort = cbs.abort.unwrap();
                 cbs.abort = None();
                 abort();
             }
-        }, dummy_fn);
+        });
     }
 }
 
@@ -332,6 +331,14 @@ class AsyncTask<Item, Error> implements Task<Item, Error> {
 
     constructor(ctrl: AsyncControl<Item, Error>) {
         this._ = ctrl;
+    }
+
+    fail(err: Error) {
+        this.end(Err(err));
+    }
+    
+    done(item: Item) {
+        this.end(Ok(item));
     }
 
     end(res: Result<Item, Error>) {
@@ -364,13 +371,17 @@ export function never<Item, Error>(): Future<Item, Error> {
 
 export function ok<Item, Error>(item: Item): Future<Item, Error> {
     const [task, future] = channel<Item, Error>();
-    task.end(Ok(item));
+    task.start(() => {
+        task.done(item);
+    });
     return future;
 }
 
 export function err<Item, Error>(error: Error): Future<Item, Error> {
     const [task, future] = channel<Item, Error>();
-    task.end(Err(error));
+    task.start(() => {
+        task.fail(error);
+    });
     return future;
 }
 
