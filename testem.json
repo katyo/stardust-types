@@ -7,8 +7,8 @@
   "serve_files": [
     "test-out.js"
   ],
-  "before_tests": "browserify -d test/index.ts -p [ tsify --noImplicitAny ] -o test-out.js; ts-node test/server.ts start 8182 &",
-  "on_exit": "ts-node test/server.ts stop 8182; rm -f test-out.js",
+  "before_tests": "browserify -d test/index.ts -p [ tsify --noImplicitAny ] -o test-out.js",
+  "on_exit": "rm -f test-out.js",
   "proxies": {
     "/xhr": {
       "target": "http://localhost:8182/"
@@ -20,5 +20,7 @@
       "protocol": "tap"
     }
   },
+  "launch_in_ci": [ "firefox", "chromium", "nodejs" ],
+  "ignore_missing_launchers": true,
   "launch_in_dev": [ "firefox", "chromium", "safari", "nodejs" ]
 }

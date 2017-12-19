@@ -1,12 +1,20 @@
 import { createServer, Server, IncomingMessage, ServerResponse, request } from 'http';
+import { spawn } from 'child_process';
 
-const cmd = process.argv[2];
-const port = parseInt(process.argv[3], 10);
+const args = process.argv;
+const cmd = args[2];
+const port = parseInt(args[3], 10);
 let server: Server;
 
 switch (cmd) {
 case 'start':
     console.log('start server on port', port);
+    spawn('ts-node', [...args.slice(1, 2), 'run', ...args.slice(3)], {
+        detached: true,
+        stdio: 'inherit',
+    }).unref();
+    break;
+case 'run':
     server = createServer(handler);
     server.listen(port);
     break;
