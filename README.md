@@ -1,4 +1,4 @@
-# Rust-style monad types for TypeScript
+# Rust-style monad types for TypeScript [![Build Status](https://travis-ci.org/katyo/stardust-types.svg?branch=master)](https://travis-ci.org/katyo/stardust-types)
 
 ## Implemented types
 

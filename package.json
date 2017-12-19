@@ -4,7 +4,8 @@
   "description": "The useful wrapping types for typescript",
   "main": "types.js",
   "scripts": {
-    "test": "testem",
+    "test": "testem ci",
+    "test-dev": "testem",
     "compile": "npm run compile-es && npm run compile-js",
     "compile-es": "tsc --outDir es --module es6 --moduleResolution node",
     "compile-js": "tsc --outDir ./",
