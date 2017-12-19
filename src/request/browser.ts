@@ -55,10 +55,20 @@ function xhr_on(xhr: XMLHttpRequest, res_fn: ResFn, need_body: boolean) {
 interface XHRAPI {
     upload(xhr: XMLHttpRequest, buf: Buffer): void;
     download_init(xhr: XMLHttpRequest): void;
-    download_done(xhr: XMLHttpRequest): Buffer;
+    download_done(xhr: XMLHttpRequest): Buffer | undefined;
 }
 
 const {upload, download_init, download_done} = xhrapi_new();
+
+function bodyFrom(data: string | ArrayBuffer): Buffer | undefined {
+    if (data == undefined) {
+        return undefined;
+    }
+    if (typeof data == 'string') {
+        return Buffer.from(data, 'binary');
+    }
+    return Buffer.from(data as ArrayBuffer);
+}
 
 interface MozXMLHttpRequest {
     sendAsBinary(data: any): void;
@@ -73,7 +83,7 @@ function xhrapi_new(): XHRAPI {
             download_init: (xhr: XMLHttpRequest) => {
             },
             download_done: (xhr: XMLHttpRequest) => {
-                return Buffer.from(xhr.responseText, 'binary');
+                return bodyFrom(xhr.responseText);
             }
         };
     }
@@ -118,16 +128,16 @@ function xhrapi_new(): XHRAPI {
     })(xhr) ? [(xhr: XMLHttpRequest) => {
         xhr.responseType = 'arraybuffer';
     }, (xhr: XMLHttpRequest) => {
-        return Buffer.from(xhr.response as ArrayBuffer);
+        return bodyFrom(xhr.response as ArrayBuffer);
     }] : typeof xhr.overrideMimeType == 'function' ? [(xhr: XMLHttpRequest) => {
         // download binary string through overriding mime type
         xhr.overrideMimeType('text/plain; charset=x-user-defined');
     }, (xhr: XMLHttpRequest) => {
-        return Buffer.from(xhr.responseText, 'binary');
+        return bodyFrom(xhr.responseText);
     }] : [(xhr: XMLHttpRequest) => {
         // download binary string as DOMString
     }, (xhr: XMLHttpRequest) => {
-        return Buffer.from(xhr.responseText, 'binary');
+        return bodyFrom(xhr.responseText);
     }];
     
     return {
