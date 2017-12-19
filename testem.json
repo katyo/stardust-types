@@ -1,6 +1,7 @@
 {
   "framework": "mocha",
   "src_files": [
+    "src/*.ts",
     "test/*.ts"
   ],
   "serve_files": [

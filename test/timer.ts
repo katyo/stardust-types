@@ -1,6 +1,6 @@
 import { deepEqual } from 'assert';
-import { timeout } from '../timer';
-import { Ok, Err } from '../result';
+import { timeout } from '../src/timer';
+import { Ok, Err } from '../src/result';
 
 describe('timer', () => {
     it('timeout 0 Ok(true)', (done) => {

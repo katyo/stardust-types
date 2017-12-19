@@ -1,6 +1,6 @@
 import { equal, deepEqual, throws } from 'assert';
-import { Some, None } from '../option';
-import { Result, Ok, Err } from '../result';
+import { Some, None } from '../src/option';
+import { Result, Ok, Err } from '../src/result';
 
 describe('result', () => {
     let ok: Result<number, string>;

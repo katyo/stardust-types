@@ -1,6 +1,6 @@
 import { equal, deepEqual, throws, doesNotThrow } from 'assert';
-import { Option, Some, None } from '../option';
-import { Ok, Err } from '../result';
+import { Option, Some, None } from '../src/option';
+import { Ok, Err } from '../src/result';
 
 describe('option', () => {
     let some: Option<string>;

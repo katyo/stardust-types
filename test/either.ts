@@ -1,7 +1,7 @@
 import { equal, deepEqual, throws } from 'assert';
-import { Either, A, B } from '../either';
-import { Some, None } from '../option';
-import { Ok, Err } from '../result';
+import { Either, A, B } from '../src/either';
+import { Some, None } from '../src/option';
+import { Ok, Err } from '../src/result';
 
 describe('either', () => {
     let a: Either<number, string>;

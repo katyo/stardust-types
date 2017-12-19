@@ -1,7 +1,7 @@
 import { equal, deepEqual } from 'assert';
-import { Future, Task, channel, join_all, never, ok as f_ok, err as f_err } from '../future';
-import { A, B } from '../either';
-import { Ok, Err } from '../result';
+import { Future, Task, channel, join_all, never, ok as f_ok, err as f_err } from '../src/future';
+import { A, B } from '../src/either';
+import { Ok, Err } from '../src/result';
 
 describe('future', () => {
     let a: Future<string, Error>;

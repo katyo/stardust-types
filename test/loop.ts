@@ -1,7 +1,7 @@
 import { deepEqual, fail } from 'assert';
-import { ok } from '../future';
-import { Ok } from '../result';
-import { loop_fn, Break, Continue } from '../loop';
+import { ok } from '../src/future';
+import { Ok } from '../src/result';
+import { loop_fn, Break, Continue } from '../src/loop';
 
 describe('loop', () => {
     it('no iterations', () => {

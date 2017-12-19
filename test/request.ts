@@ -1,5 +1,5 @@
 import { equal, deepEqual } from 'assert';
-import { Method, request, SuccessCode, SuccessStatus, ClientError, ClientCode, ServerError, ServerCode } from '../request';
+import { Method, request, SuccessCode, SuccessStatus, ClientError, ClientCode, ServerError, ServerCode } from '../src/request';
 
 const base = typeof window != 'undefined' ? '' : 'http://localhost:8182';
 //const base = 'http://localhost:8182';
