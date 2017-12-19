@@ -316,10 +316,9 @@ class AsyncControl<Item, Error> {
 
     abort() {
         this._.map((cbs) => {
-            if (cbs.abort.is_some &&
-                cbs.end.length == 0) {
+            if (cbs.abort.is_some) {
                 const abort = cbs.abort.unwrap();
-                cbs.abort = None();
+                this._ = None();
                 abort();
             }
         });
