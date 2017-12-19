@@ -368,18 +368,32 @@ export function never<Item, Error>(): Future<Item, Error> {
     return async_never as any as Future<Item, Error>;
 }
 
+const [defer, unfer]: [(fn: () => void) => any, (id: any) => void] =
+    typeof setImmediate == 'function' ? [setImmediate, clearImmediate] :
+    [(fn: () => void) => { setTimeout(fn, 0); }, clearTimeout];
+
 export function ok<Item, Error>(item: Item): Future<Item, Error> {
     const [task, future] = channel<Item, Error>();
+    let id: any;
     task.start(() => {
-        task.done(item);
+        id = defer(() => {
+            task.done(item);
+        });
+    }).abort(() => {
+        unfer(id);
     });
     return future;
 }
 
 export function err<Item, Error>(error: Error): Future<Item, Error> {
     const [task, future] = channel<Item, Error>();
+    let id: any;
     task.start(() => {
-        task.fail(error);
+        id = defer(() => {
+            task.fail(error);
+        });
+    }).abort(() => {
+        unfer(id);
     });
     return future;
 }
