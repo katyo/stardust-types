@@ -259,6 +259,10 @@ function off_fn<Fn>(fns: Fn[], fn: Fn) {
     }
 }
 
+const [defer, unfer]: [(fn: () => void) => any, (id: any) => void] =
+    typeof setImmediate == 'function' ? [setImmediate, clearImmediate] :
+    [(fn: () => void) => { setTimeout(fn, 0); }, clearTimeout];
+
 type AsyncCallback<Item, Error> = (res: Result<Item, Error>) => void;
 type AsyncHook = () => void;
 
@@ -274,6 +278,8 @@ type AsyncState<Item, Error> = Option<AsyncHandlers<Item, Error>>;
 
 class AsyncControl<Item, Error> {
     private _: AsyncState<Item, Error> = Some({ end: [], start: None<AsyncHook>(), abort: None<AsyncHook>() });
+    private $: boolean = false;
+    private D: any;
 
     on_end(fn: (res: Result<Item, Error>) => void) {
         this._.map(({ end }) => on_fn(end, fn));
@@ -286,9 +292,13 @@ class AsyncControl<Item, Error> {
     end(res: Result<Item, Error>) {
         this._.map(({ end }) => {
             this._ = None();
-            for (const fn of end) {
-                fn(res);
-            }
+            const emit = () => {
+                for (const fn of end) {
+                    fn(res);
+                }
+            };
+            if (this.$) this.D = defer(emit);
+            else emit();
         });
     }
 
@@ -309,13 +319,19 @@ class AsyncControl<Item, Error> {
             if (cbs.start.is_some) {
                 const start = cbs.start.unwrap();
                 cbs.start = None();
+                this.$ = true;
                 start();
+                this.$ = false;
             }
         });
     }
 
     abort() {
         this._.map((cbs) => {
+            if (this.D) {
+                unfer(this.D);
+                delete this.D;
+            }
             if (cbs.abort.is_some) {
                 const abort = cbs.abort.unwrap();
                 this._ = None();
@@ -368,32 +384,18 @@ export function never<Item, Error>(): Future<Item, Error> {
     return async_never as any as Future<Item, Error>;
 }
 
-const [defer, unfer]: [(fn: () => void) => any, (id: any) => void] =
-    typeof setImmediate == 'function' ? [setImmediate, clearImmediate] :
-    [(fn: () => void) => { setTimeout(fn, 0); }, clearTimeout];
-
 export function ok<Item, Error>(item: Item): Future<Item, Error> {
     const [task, future] = channel<Item, Error>();
-    let id: any;
     task.start(() => {
-        id = defer(() => {
-            task.done(item);
-        });
-    }).abort(() => {
-        unfer(id);
+        task.done(item);
     });
     return future;
 }
 
 export function err<Item, Error>(error: Error): Future<Item, Error> {
     const [task, future] = channel<Item, Error>();
-    let id: any;
     task.start(() => {
-        id = defer(() => {
-            task.fail(error);
-        });
-    }).abort(() => {
-        unfer(id);
+        task.fail(error);
     });
     return future;
 }
