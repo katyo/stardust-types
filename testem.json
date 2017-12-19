@@ -20,5 +20,5 @@
       "protocol": "tap"
     }
   },
-  "launch_in_dev": [ "firefox", "chromium", "nodejs" ]
+  "launch_in_dev": [ "firefox", "chromium", "safari", "nodejs" ]
 }

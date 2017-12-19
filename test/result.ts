@@ -2,6 +2,15 @@ import { equal, deepEqual, throws } from 'assert';
 import { Some, None } from '../src/option';
 import { Result, Ok, Err } from '../src/result';
 
+interface FakeError {
+    code: number;
+    message: string;
+}
+
+function newError(message: string, code: number = 0): FakeError {
+    return { code, message };
+}
+
 describe('result', () => {
     let ok: Result<number, string>;
     let err: Result<number, string>;
@@ -52,13 +61,13 @@ describe('result', () => {
     });
 
     it('map_err', () => {
-        deepEqual(ok.map_err(err => new Error(err)), Ok(123));
-        deepEqual(err.map_err(err => new Error(err)), Err(new Error("Not a number")));
+        deepEqual(ok.map_err(err => newError(err)), Ok(123));
+        deepEqual(err.map_err(err => newError(err)), Err(newError("Not a number")));
     });
 
     it('map_err_or', () => {
-        deepEqual(ok.map_err_or(new Error("A number"), err => new Error(err)), new Error("A number"));
-        deepEqual(err.map_err_or(new Error("Something else"), err => new Error(err)), new Error("Not a number"));
+        deepEqual(ok.map_err_or(newError("A number"), err => newError(err)), newError("A number"));
+        deepEqual(err.map_err_or(newError("Something else"), err => newError(err)), newError("Not a number"));
     });
 
     it('map_err_or_else', () => {
