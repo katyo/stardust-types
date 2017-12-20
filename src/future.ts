@@ -402,7 +402,7 @@ export function err<Item, Error>(error: Error): Future<Item, Error> {
 
 export function join_all<Item, Error>(futures: Future<Item, Error>[]): Future<Item[], Error> {
     if (futures.length == 0) {
-        return never();
+        return ok([]);
     }
 
     let future: Future<Item[], Error> = futures[0].map(item => [item]);
