@@ -19,7 +19,6 @@
         "src/either.ts",
         "src/future.ts",
         "src/stream.ts",
-        "src/loop.ts",
         "src/timer.ts",
         "src/request.ts",
         "src/request/backend.ts",
