@@ -42,7 +42,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     map<NewItem>(fn: (item: Item) => NewItem): Future<NewItem, Error> {
-        const [task, future] = channel<NewItem, Error>();
+        const [task, future] = oneshot<NewItem, Error>();
         const on = (res: Result<Item, Error>) => { task.end(res.map(fn)); };
         this.end(on);
         task
@@ -52,7 +52,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     map_err<NewError>(fn: (error: Error) => NewError): Future<Item, NewError> {
-        const [task, future] = channel<Item, NewError>();
+        const [task, future] = oneshot<Item, NewError>();
         const on = (res: Result<Item, Error>) => { task.end(res.map_err(fn)); };
         this.end(on);
         task
@@ -62,7 +62,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     then<NewItem, NewError>(fn: (res: Result<Item, Error>) => Future<NewItem, NewError>): Future<NewItem, NewError> {
-        const [task, future] = channel<NewItem, NewError>();
+        const [task, future] = oneshot<NewItem, NewError>();
         const on = (res: Result<Item, Error>) => {
             const other = fn(res);
             const on = (res: Result<NewItem, NewError>) => { task.end(res); };
@@ -77,7 +77,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     and<NewItem>(other: Future<NewItem, Error>): Future<NewItem, Error> {
-        const [task, future] = channel<NewItem, Error>();
+        const [task, future] = oneshot<NewItem, Error>();
         const on = (res: Result<Item, Error>) => {
             res.then(_ => {
                 const on = (res: Result<NewItem, Error>) => { task.end(res); };
@@ -95,7 +95,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     and_then<NewItem>(fn: (item: Item) => Future<NewItem, Error>): Future<NewItem, Error> {
-        const [task, future] = channel<NewItem, Error>();
+        const [task, future] = oneshot<NewItem, Error>();
         const on = (res: Result<Item, Error>) => {
             res.then(item => {
                 const other = fn(item);
@@ -114,7 +114,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     or<NewError>(other: Future<Item, NewError>): Future<Item, NewError> {
-        const [task, future] = channel<Item, NewError>();
+        const [task, future] = oneshot<Item, NewError>();
         const on = (res: Result<Item, Error>) => {
             res.then(item => {
                 task.end(Ok(item));
@@ -132,7 +132,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     or_else<NewError>(fn: (err: Error) => Future<Item, NewError>): Future<Item, NewError> {
-        const [task, future] = channel<Item, NewError>();
+        const [task, future] = oneshot<Item, NewError>();
         const on = (res: Result<Item, Error>) => {
             res.then(item => {
                 task.end(Ok(item));
@@ -151,7 +151,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     select(other: Future<Item, Error>): Future<Item, Error> {
-        const [task, future] = channel<Item, Error>();
+        const [task, future] = oneshot<Item, Error>();
         const on_this = (res: Result<Item, Error>) => {
             other.unend(on_other).abort();
             task.end(res);
@@ -175,7 +175,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     select_either<OtherItem, OtherError>(other: Future<OtherItem, OtherError>): Future<Either<Item, OtherItem>, Either<Error, OtherError>> {
-        const [task, future] = channel<Either<Item, OtherItem>, Either<Error, OtherError>>();
+        const [task, future] = oneshot<Either<Item, OtherItem>, Either<Error, OtherError>>();
         const on_this = (res: Result<Item, Error>) => {
             other.unend(on_other).abort();
             task.end(res.map(A).map_err(A) as Result<Either<Item, OtherItem>, Either<Error, OtherError>>);
@@ -193,7 +193,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 
     join<OtherItem>(other: Future<OtherItem, Error>): Future<[Item, OtherItem], Error> {
-        const [task, future] = channel<[Item, OtherItem], Error>();
+        const [task, future] = oneshot<[Item, OtherItem], Error>();
         let item_this: Option<Item> = None();
         let item_other: Option<OtherItem> = None();
         const on_this = (res: Result<Item, Error>) => {
@@ -371,7 +371,7 @@ class AsyncTask<Item, Error> implements Task<Item, Error> {
     }
 }
 
-export function channel<Item, Error>(): [Task<Item, Error>, Future<Item, Error>] {
+export function oneshot<Item, Error>(): [Task<Item, Error>, Future<Item, Error>] {
     const control = new AsyncControl<Item, Error>();
     const task = new AsyncTask<Item, Error>(control);
     const future = new AsyncFuture<Item, Error>(control);
@@ -385,7 +385,7 @@ export function never<Item, Error>(): Future<Item, Error> {
 }
 
 export function ok<Item, Error>(item: Item): Future<Item, Error> {
-    const [task, future] = channel<Item, Error>();
+    const [task, future] = oneshot<Item, Error>();
     task.start(() => {
         task.done(item);
     });
@@ -393,7 +393,7 @@ export function ok<Item, Error>(item: Item): Future<Item, Error> {
 }
 
 export function err<Item, Error>(error: Error): Future<Item, Error> {
-    const [task, future] = channel<Item, Error>();
+    const [task, future] = oneshot<Item, Error>();
     task.start(() => {
         task.fail(error);
     });
@@ -428,7 +428,7 @@ export function Continue<Item, State>(state: State): Loop<Item, State> {
 export type LoopFuture<State, Item, Error> = Future<Loop<Item, State>, Error>;
 
 export function loop_fn<State, Item, Error>(init: State, fn: (state: State) => LoopFuture<State, Item, Error>): Future<Item, Error> {
-    const [task, future] = channel<Item, Error>();
+    const [task, future] = oneshot<Item, Error>();
     let loop_future: LoopFuture<State, Item, Error> | undefined;
     let loop_active = true;
     const step = (state: State) => {

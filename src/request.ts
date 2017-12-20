@@ -1,5 +1,5 @@
 import { Ok, Err } from './result';
-import { Future, channel } from './future';
+import { Future, oneshot } from './future';
 import { Method, Headers, ReqFn, AbrFn } from './request/backend';
 import { request as browser_request } from './request/browser';
 //import { request as node_request } from './request/node';
@@ -163,7 +163,7 @@ export type ResponseStatus = InfoStatus | SuccessStatus | RedirectStatus | Clien
 export type ResponseError = Error;
 
 export function request(req: Request): Future<Response, ResponseError> {
-    const [task, future] = channel<Response, ResponseError>();
+    const [task, future] = oneshot<Response, ResponseError>();
 
     let abort: AbrFn;
     

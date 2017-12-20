@@ -1,5 +1,5 @@
 import { equal, deepEqual, fail } from 'assert';
-import { Future, Task, channel, join_all, never, ok, err, Continue, Break, loop_fn } from '../src/future';
+import { Future, Task, oneshot, join_all, never, ok, err, Continue, Break, loop_fn } from '../src/future';
 import { A, B } from '../src/either';
 import { Ok, Err } from '../src/result';
 
@@ -23,10 +23,10 @@ describe('future', () => {
     let ed: Task<boolean, string>;
 
     beforeEach(() => {
-        ([ea, a] = channel());
-        ([eb, b] = channel());
-        ([ec, c] = channel());
-        ([ed, d] = channel());
+        ([ea, a] = oneshot());
+        ([eb, b] = oneshot());
+        ([ec, c] = oneshot());
+        ([ed, d] = oneshot());
     });
 
     it('never', (done) => {
@@ -53,8 +53,8 @@ describe('future', () => {
     });
 
     it('ctor', () => {
-        deepEqual([ea, a], channel());
-        deepEqual([eb, b], channel());
+        deepEqual([ea, a], oneshot());
+        deepEqual([eb, b], oneshot());
     });
 
     it('end ok', (done) => {
