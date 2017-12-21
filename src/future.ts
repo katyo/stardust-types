@@ -397,6 +397,48 @@ export function join_all<Item, Error>(futures: Future<Item, Error>[]): Future<It
     return future;
 }
 
+export function select_all<Item, Error>(futures: Future<Item, Error>[]): Future<[Item, number, Future<Item, Error>[]], [Error, number, Future<Item, Error>[]]> {
+    if (futures.length == 0) {
+        throw 'No futures for select';
+    }
+
+    const [task, future] = oneshot<[Item, number, Future<Item, Error>[]], [Error, number, Future<Item, Error>[]]>();
+
+    const on = (i: number) => (res: Result<Item, Error>) => {
+        futures.splice(i, 1);
+        for (let i = 0; i < futures.length; i++) {
+            futures[i].unend();
+        }
+        res.map_or_else(err => {
+            task.fail([err, i, futures]);
+        }, item => {
+            task.done([item, i, futures]);
+        });
+    };
+
+    for (let i = 0; i < futures.length; i++) {
+        futures[i].end(on(i));
+    }
+
+    task.start(() => {
+        for (let i = 0; i < futures.length; i++) {
+            futures[i].start();
+        }
+    }).abort(() => {
+        for (let i = 0; i < futures.length; i++) {
+            futures[i].abort();
+        }
+    });
+
+    return future;
+}
+
+export function select_ok<Item, Error>(futures: Future<Item, Error>[]): Future<[Item, Future<Item, Error>[]], Error> {    
+    return select_all(futures)
+        .map(([item, i, futures]) => [item, futures])
+        .or_else(([error, i, futures]) => (futures.length > 0 ? select_ok(futures) : err(error))) as Future<[Item, Future<Item, Error>[]], Error>;
+}
+
 export type Loop<Item, State> = Either<Item, State>;
 
 export function Break<Item, State>(item: Item): Loop<Item, State> {

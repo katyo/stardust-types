@@ -1,5 +1,5 @@
-import { equal, deepEqual, fail } from 'assert';
-import { Future, Task, oneshot, join_all, never, ok, err, Continue, Break, loop_fn } from '../src/future';
+import { equal, deepEqual, strictEqual, fail } from 'assert';
+import { Future, Task, oneshot, select_all, select_ok, join_all, never, ok, err, Continue, Break, loop_fn } from '../src/future';
 import { A, B } from '../src/either';
 import { Ok, Err } from '../src/result';
 
@@ -326,6 +326,94 @@ describe('future', () => {
             }).start();
             eb.end(Err("???"));
             ea.end(Ok("abc"));
+        });
+    });
+
+    describe('select_all', () => {
+        it('case 1', (done) => {
+            const a_ = a.map(s => !!s).map_err(e => e.message);
+            select_all([a_, b, d]).end(res => {
+                const [val, i, futures] = res.unwrap();
+                strictEqual(val, true);
+                equal(i, 1);
+                equal(futures.length, 2);
+                strictEqual(futures[0], a_);
+                strictEqual(futures[1], d);
+                done();
+            }).start();
+            eb.end(Ok(true));
+            ed.end(Err("Not a value"));
+        });
+        
+        it('case 2', (done) => {
+            const a_ = a.map(s => !!s).map_err(e => e.message);
+            select_all([a_, b, d]).end(res => {
+                const [err, i, futures] = res.unwrap_err();
+                strictEqual(err, "Not a value");
+                equal(i, 2);
+                equal(futures.length, 2);
+                strictEqual(futures[0], a_);
+                strictEqual(futures[1], b);
+                done();
+            }).start();
+            ed.end(Err("Not a value"));
+            eb.end(Ok(false));
+        });
+
+        it('case 3', (done) => {
+            const a_ = a.map(s => !!s).map_err(e => e.message);
+            select_all([a_, b, d]).end(res => {
+                const [val, i, futures] = res.unwrap();
+                strictEqual(val, false);
+                equal(i, 0);
+                equal(futures.length, 2);
+                strictEqual(futures[0], b);
+                strictEqual(futures[1], d);
+                done();
+            }).start();
+            ea.end(Ok(""));
+            ed.end(Err("Not a value"));
+            eb.end(Ok(false));
+        });
+    });
+
+    describe('select_ok', () => {
+        it('case 1', (done) => {
+            const a_ = a.map(s => !!s).map_err(e => e.message);
+            select_ok([a_, b, d]).end(res => {
+                const [val, futures] = res.unwrap();
+                strictEqual(val, false);
+                equal(futures.length, 2);
+                strictEqual(futures[0], a_);
+                strictEqual(futures[1], d);
+                done();
+            }).start();
+            eb.end(Ok(false));
+            ed.end(Err("Not a value"));
+        });
+        
+        it('case 2', (done) => {
+            const a_  = a.map(s => !!s).map_err(e => e.message);
+            select_ok([a_, b, d]).end(res => {
+                const [val, futures] = res.unwrap();
+                strictEqual(val, true);
+                equal(futures.length, 1);
+                strictEqual(futures[0], a_);
+                done();
+            }).start();
+            ed.end(Err("Not a value"));
+            eb.end(Ok(true));
+        });
+
+        it('case 3', (done) => {
+            const a_ = a.map(s => !!s).map_err(e => e.message);
+            select_ok([a_, b, d]).end(res => {
+                deepEqual(res, Err("Invalid"));
+                done();
+            }).start();
+            ea.end(Err(newError("Unexpected")));
+            ed.end(Err("Not a value"));
+            eb.end(Err("Invalid"));
         });
     });
 
