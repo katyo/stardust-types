@@ -1,6 +1,7 @@
 import { Option, Some, None } from './option';
 import { Result, Ok, Err } from './result';
 import { Either, A, B } from './either';
+import { AsyncHook, AsyncCall } from './async';
 
 export interface Future<Item, Error> {
     map<NewItem>(fn: (item: Item) => NewItem): Future<NewItem, Error>;
@@ -28,7 +29,7 @@ export interface Task<Item, Error> {
     end(res: Result<Item, Error>): void;
     fail(err: Error): void;
     done(item: Item): void;
-    
+
     /* feedback */
     start(fn: () => void): Task<Item, Error>;
     abort(fn: () => void): Task<Item, Error>;
@@ -171,14 +172,14 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
         this.end((res: Result<Item, Error>) => {
             other.abort();
             task.end(res.map(A).map_err(A) as
-                     Result<Either<Item, OtherItem>,
-                            Either<Error, OtherError>>);
+                Result<Either<Item, OtherItem>,
+                Either<Error, OtherError>>);
         });
         other.end((res: Result<OtherItem, OtherError>) => {
             this.abort();
             task.end(res.map(B).map_err(B) as
-                     Result<Either<Item, OtherItem>,
-                            Either<Error, OtherError>>);
+                Result<Either<Item, OtherItem>,
+                Either<Error, OtherError>>);
         });
         task.start(() => { this.start(); other.start(); })
             .abort(() => { this.abort(); other.abort(); });
@@ -195,7 +196,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
                     item_this = Some(item_this_raw);
                 }, item_other_raw => {
                     task.end(Ok([item_this_raw, item_other_raw] as
-                                [Item, OtherItem]));
+                        [Item, OtherItem]));
                 });
             }, error => {
                 other.abort();
@@ -208,7 +209,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
                     item_other = Some(item_other_raw);
                 }, item_this_raw => {
                     task.end(Ok([item_this_raw, item_other_raw] as
-                                [Item, OtherItem]));
+                        [Item, OtherItem]));
                 });
             }, error => {
                 this.abort();
@@ -239,12 +240,7 @@ class AsyncFuture<Item, Error> implements Future<Item, Error> {
     }
 }
 
-const [defer, unfer]: [(fn: () => void) => any, (id: any) => void] =
-    typeof setImmediate == 'function' ? [setImmediate, clearImmediate] :
-    [(fn: () => void) => { setTimeout(fn, 0); }, clearTimeout];
-
 type AsyncCallback<Item, Error> = (res: Result<Item, Error>) => void;
-type AsyncHook = () => void;
 
 interface AsyncHandlers<Item, Error> {
     end: Option<AsyncCallback<Item, Error>>;
@@ -257,9 +253,12 @@ interface AsyncHandlers<Item, Error> {
 type AsyncState<Item, Error> = Option<AsyncHandlers<Item, Error>>;
 
 class AsyncControl<Item, Error> {
-    private _: AsyncState<Item, Error> = Some({ end: None<AsyncCallback<Item, Error>>(), start: None<AsyncHook>(), abort: None<AsyncHook>() });
-    private $: boolean = false;
-    private D: any;
+    private _: AsyncState<Item, Error> = Some({
+        end: None<AsyncCallback<Item, Error>>(),
+        start: None<AsyncHook>(),
+        abort: None<AsyncHook>(),
+    });
+    private $: AsyncCall = new AsyncCall();
 
     on_end(fn: (res: Result<Item, Error>) => void) {
         this._.map(cbs => {
@@ -277,9 +276,7 @@ class AsyncControl<Item, Error> {
         this._.map(({ end }) => {
             this._ = None();
             end.map(fn => {
-                const emit = () => { fn(res); };
-                if (this.$) this.D = defer(emit);
-                else emit();
+                this.$.call(() => { fn(res); });
             });
         });
     }
@@ -298,27 +295,20 @@ class AsyncControl<Item, Error> {
 
     start() {
         this._.map((cbs) => {
-            if (cbs.start.is_some) {
-                const start = cbs.start.unwrap();
+            cbs.start.map(start => {
                 cbs.start = None();
-                this.$ = true;
-                start();
-                this.$ = false;
-            }
+                this.$.wrap(start);
+            });
         });
     }
 
     abort() {
         this._.map((cbs) => {
-            if (this.D) {
-                unfer(this.D);
-                delete this.D;
-            }
-            if (cbs.abort.is_some) {
-                const abort = cbs.abort.unwrap();
+            this.$.drop();
+            cbs.abort.map(abort => {
                 this._ = None();
                 abort();
-            }
+            });
         });
     }
 }
@@ -333,7 +323,7 @@ class AsyncTask<Item, Error> implements Task<Item, Error> {
     fail(err: Error) {
         this.end(Err(err));
     }
-    
+
     done(item: Item) {
         this.end(Ok(item));
     }
@@ -433,7 +423,7 @@ export function select_all<Item, Error>(futures: Future<Item, Error>[]): Future<
     return future;
 }
 
-export function select_ok<Item, Error>(futures: Future<Item, Error>[]): Future<[Item, Future<Item, Error>[]], Error> {    
+export function select_ok<Item, Error>(futures: Future<Item, Error>[]): Future<[Item, Future<Item, Error>[]], Error> {
     return select_all(futures)
         .map(([item, i, futures]) => [item, futures])
         .or_else(([error, i, futures]) => (futures.length > 0 ? select_ok(futures) : err(error))) as Future<[Item, Future<Item, Error>[]], Error>;
@@ -462,7 +452,7 @@ export function loop_fn<State, Item, Error>(init: State, fn: (state: State) => L
                 err => { task.fail(err); },
                 loop => {
                     loop.map_a_or_else(state => { if (loop_active) step(state); },
-                                       item => { task.done(item); });
+                        item => { task.done(item); });
                 }
             );
         });
