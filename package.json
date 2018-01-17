@@ -6,14 +6,19 @@
   "scripts": {
     "pretest": "npm run test-server-start",
     "posttest": "npm run test-server-stop",
+    "compile-test": "browserify -d test/index.ts -p [ tsify --noImplicitAny ] -o test-out.js",
+    "clean-test": "rm -f test-out.js",
     "test": "testem ci",
     "test-dev": "npm run test-server-start; testem; npm run test-server-stop",
-    "test-node": "mocha -r ts-node/register test/index.ts -R spec",
+    "test-node": "npm run test-server-start; mocha -r ts-node/register test/index.ts -R spec; npm run test-server-stop",
     "test-server-start": "ts-node test/server.ts start 8182",
     "test-server-stop": "ts-node test/server.ts stop 8182",
     "compile": "npm run compile-es && npm run compile-js",
+    "clean": "npm run clean-es && npm run clean-js",
     "compile-es": "tsc --outDir es --module es6 --moduleResolution node",
+    "clean-es": "rm -rf es",
     "compile-js": "tsc --outDir ./",
+    "clean-js": "rm -f *.d.ts *.js *.js.map",
     "prepublish": "npm run compile"
   },
   "repository": {

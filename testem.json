@@ -7,8 +7,8 @@
   "serve_files": [
     "test-out.js"
   ],
-  "before_tests": "browserify -d test/index.ts -p [ tsify --noImplicitAny ] -o test-out.js",
-  "on_exit": "rm -f test-out.js",
+  "before_tests": "npm run compile-test",
+  "on_exit": "npm run clean-test",
   "proxies": {
     "/xhr": {
       "target": "http://localhost:8182/"
