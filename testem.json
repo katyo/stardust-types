@@ -20,6 +20,12 @@
       "protocol": "tap"
     }
   },
+  "browser_args": {
+    "chromium": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox"
+    ]
+  },
   "launch_in_ci": [ "firefox", "chromium", "nodejs" ],
   "ignore_missing_launchers": true,
   "launch_in_dev": [ "firefox", "chromium", "safari", "nodejs" ]
