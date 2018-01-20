@@ -2,7 +2,7 @@
 
 ## Implemented types
 
-### Option<Item>
+### Option\<Item>
 
 The option can hold some value or none. This type is preferred to use instead of special values like `null` or `undefined`.
 
